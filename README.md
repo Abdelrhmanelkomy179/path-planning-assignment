@@ -1,68 +1,272 @@
 # Path Planning Assignment
 
-## Overview
+## 1. Project Overview
 
 This project implements a simple geometric path planning solution for an autonomous racing car using detected track cones.
 
-The car receives:
+The car is given:
 
 * Its current position and heading.
 * The detected cones around the car.
 * The color of each cone.
 
-Blue cones represent the **left side** of the track, while yellow cones represent the **right side**.
+Blue cones represent the left side of the track, while yellow cones represent the right side.
 
-The planner receives the car pose and detected cones and returns a sequence of path points in world coordinates.
+The planner uses the cone positions and the current vehicle heading to generate a sequence of `(x, y)` points representing the desired path of the car.
 
-## Approach
+---
 
-The solution uses the color of the cones to determine the track boundaries.
+## 2. Path Planning Approach
 
-When both blue and yellow cones are detected, blue cones are paired with the closest yellow cones. The midpoint of each pair is used as an approximation of the track center.
+The implemented solution uses a geometric approach based on the available cone detections.
 
-When only blue cones are available, the blue cones are treated as the left boundary. The planner estimates the track center by shifting the boundary toward the inside of the track.
+### Both Blue and Yellow Cones
 
-When only yellow cones are available, the same idea is applied in the opposite direction.
+When cones from both sides are available, the planner estimates the center of the track using the detected cones.
 
-When no cones are detected, the planner generates a straight path using the current vehicle heading.
+When the number of cones on both sides is equal, the cones are paired according to their position along the vehicle's forward direction, and the midpoint between each pair is used as a center point.
 
-The generated path is approximately 8 meters long with points spaced by 0.4 meters.
+When one side contains more cones than the other, the available cones are matched as reasonably as possible and the remaining cones are shifted toward the expected center of the track.
 
-## Part 2
+### Only Blue Cones
 
-For the case where three cones are detected on the same side, the available cones are treated as multiple observations of the same track boundary.
+When only blue cones are detected, they are treated as the left boundary of the track.
 
-The boundary direction is estimated from the detected cones and the path is shifted toward the expected center of the track.
+The direction of the boundary is estimated from the detected cones. The planner then shifts the boundary toward the inside of the track to estimate the centerline.
 
-Two additional scenarios were added:
+### Only Yellow Cones
 
-- Scenario 21: three blue cones
-- Scenario 22: three yellow cones
+When only yellow cones are detected, they are treated as the right boundary of the track.
 
-## Assumptions
+The same approach is used, but the boundary is shifted toward the left side of the track to estimate the centerline.
+
+### No Cones
+
+If no cones are detected, the planner generates a path using the current heading of the car.
+
+This provides a fallback when there is not enough information to estimate the track boundaries.
+
+---
+
+## 3. Path Generation
+
+The generated path is approximately:
+
+* 8 meters long.
+* 0.4 meters between consecutive path points.
+* 20 path points.
+
+The path is generated in the global/world coordinate frame.
+
+The planner starts from the current vehicle position and initially follows the current vehicle heading before following the estimated track direction.
+
+---
+
+## 4. Handling Unequal Cone Counts
+
+The planner was extended to handle situations where the number of detected cones is different on each side of the track.
+
+For example, the planner can handle a situation where three cones are detected on one side and only one cone is detected on the other side.
+
+The additional scenarios are:
+
+### Scenario 21
+
+Three blue cones are detected on the left side of the track and one yellow cone is detected on the right side.
+
+### Scenario 22
+
+Three yellow cones are detected on the right side of the track and one blue cone is detected on the left side.
+
+These scenarios are used to test the planner when the cone detections are not balanced between the two sides.
+
+---
+
+## 5. Assumptions
 
 The implementation uses the following assumptions:
 
-1. Blue cones represent the left boundary.
-2. Yellow cones represent the right boundary.
-3. The approximate track width is 3 meters.
-4. The center of the track is therefore approximately 1.5 meters from a single detected boundary.
-5. The car should initially follow its current heading when insufficient cone information is available.
-6. The detected cones are reliable and do not contain significant measurement noise.
+* Blue cones represent the left side of the track.
+* Yellow cones represent the right side of the track.
+* The approximate track width is 3 meters.
+* When only one boundary is visible, the centerline is estimated approximately 1.5 meters from that boundary.
+* Cone coordinates are expressed in meters.
+* The car heading (`yaw`) is expressed in radians.
+* `yaw = 0` means the car is facing along the positive X-axis.
+* `yaw = π/2` means the car is facing along the positive Y-axis.
+* The detected cone positions are assumed to be reasonably accurate.
+* The path is generated approximately 8 meters ahead of the vehicle.
 
-## Limitations
+---
 
-This solution is intentionally simple and geometric.
+## 6. Limitations
 
-It does not implement SLAM, dynamic obstacle avoidance, vehicle dynamics, global map planning, or advanced curve fitting.
+This implementation intentionally uses a simple geometric method rather than a complex path planning algorithm.
 
-When only one side of the track is visible, the planner relies on the assumed track width. If the real track width changes significantly, the generated centerline may not be accurate.
+Some limitations include:
 
-Highly curved tracks or noisy cone detections could also require a more advanced method such as spline fitting or filtering.
+* The assumed track width may not exactly match the real track width.
+* Pairing cones based on their position may not always produce the ideal centerline on highly irregular tracks.
+* Noisy or incorrect cone detections may affect the generated path.
+* Very sharp curves may require a more advanced curve-fitting approach.
+* The solution does not include vehicle dynamics or dynamic obstacle avoidance.
 
-## Running the Project
+A more advanced implementation could use spline fitting, filtering, clustering, or model-based path planning to improve robustness.
 
-Activate the virtual environment:
+---
+
+## 7. Test Scenarios
+
+The project contains 22 predefined scenarios covering different cone configurations.
+
+The scenarios include:
+
+* No detected cones.
+* A single detected cone.
+* Cones on one side only.
+* Cones on both sides.
+* Different vehicle headings.
+* Different cone positions.
+* Unequal numbers of blue and yellow cones.
+* Three cones on one side and one cone on the other side.
+
+The generated paths can be visually inspected using the provided visualizer.
+
+---
+
+## 8. Project Structure
+
+```text
+Path Planning Task/
+│
+├── src/
+│   ├── __init__.py
+│   ├── models.py
+│   ├── path_planning.py
+│   ├── scenarios.py
+│   ├── run.py
+│   └── tester.py
+│
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
+
+### Main Files
+
+**models.py**
+
+Defines the data structures for cones, the car pose, and the generated 2D path.
+
+**path_planning.py**
+
+Contains the main `PathPlanning` class and the `generatePath()` implementation.
+
+**scenarios.py**
+
+Contains the predefined test scenarios, including the additional scenarios for the three-cone cases.
+
+**run.py**
+
+Runs the visualizer for a selected scenario.
+
+**tester.py**
+
+Provides the visualization and testing functionality for the path planner.
+
+---
+
+## 9. How to Run
+
+### 1. Open the project
+
+Open the project folder in VS Code and open a PowerShell terminal.
+
+### 2. Create a virtual environment
+
+```powershell
+python -m venv .venv
+```
+
+### 3. Activate the virtual environment
+
+On Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
+```
+
+After activation, the terminal should show:
+
+```text
+(.venv)
+```
+
+### 4. Install the required dependencies
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+### 5. Run a scenario
+
+Run any scenario by specifying its number:
+
+```powershell
+python -m src.run --scenario 1
+```
+
+For example:
+
+```powershell
+python -m src.run --scenario 3
+```
+
+### 6. Run Scenario 21
+
+Scenario 21 contains three blue cones and one yellow cone:
+
+```powershell
+python -m src.run --scenario 21
+```
+
+### 7. Run Scenario 22
+
+Scenario 22 contains three yellow cones and one blue cone:
+
+```powershell
+python -m src.run --scenario 22
+```
+
+The visualizer displays:
+
+* The detected cones.
+* The car position.
+* The car heading.
+* The generated path.
+
+### 8. Deactivate the virtual environment
+
+When finished, the virtual environment can be deactivated using:
+
+```powershell
+deactivate
+```
+
+---
+
+## 10. Conclusion
+
+The final implementation provides a simple and understandable geometric path planner that handles the main cases required by the assignment.
+
+It supports:
+
+* No detected cones.
+* One-sided cone detection.
+* Both blue and yellow boundaries.
+* Unequal numbers of cones on the two sides.
+* Three-cone test cases.
+* Generation of a continuous path with approximately 0.4 meter spacing.
+* A fallback path based on the current vehicle heading when there is insufficient cone information.
+
+The solution focuses on simplicity, clear assumptions, and handling the different cone configurations included in the test scenarios.
